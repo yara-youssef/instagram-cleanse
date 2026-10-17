@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { compare, parseAccounts } from './lib/instagram'
 
 const files = ref({
@@ -41,11 +41,45 @@ const brokenAvatars = ref(new Set())
 const avatarUrl = (username) => `https://unavatar.io/instagram/${username}?fallback=false`
 const initialOf = (username) => (username.replace(/[^a-z0-9]/gi, '')[0] || '?').toUpperCase()
 
+// Progress is kept in localStorage (keyed by lowercase username) so it
+// survives reloads and re-uploading the files.
+function storedSet(key) {
+  let initial = []
+  try {
+    initial = JSON.parse(localStorage.getItem(key)) ?? []
+  } catch {}
+  const set = ref(new Set(initial))
+  watch(
+    set,
+    (value) => {
+      try {
+        localStorage.setItem(key, JSON.stringify([...value]))
+      } catch {}
+    },
+    { deep: true },
+  )
+  return set
+}
+const opened = storedSet('instagram-cleanse:opened')
+const done = storedSet('instagram-cleanse:done')
+const hideDone = ref(false)
+
+const keyOf = (account) => account.username.toLowerCase()
+function toggleDone(account) {
+  const key = keyOf(account)
+  done.value.has(key) ? done.value.delete(key) : done.value.add(key)
+}
+
+const doneCount = computed(() =>
+  result.value ? result.value[activeTab.value].filter((a) => done.value.has(keyOf(a))).length : 0,
+)
+
 const visible = computed(() => {
   if (!result.value) return []
   const q = search.value.trim().toLowerCase()
   return result.value[activeTab.value]
     .filter((a) => a.username.toLowerCase().includes(q))
+    .filter((a) => !hideDone.value || !done.value.has(keyOf(a)))
     .sort((a, b) => a.username.localeCompare(b.username))
 })
 </script>
@@ -83,9 +117,23 @@ const visible = computed(() => {
 
       <input v-model="search" class="search" type="search" placeholder="Search usernames…" />
 
+      <div class="toolbar">
+        <span>{{ doneCount }} of {{ result[activeTab].length }} done</span>
+        <label><input v-model="hideDone" type="checkbox" /> Hide done</label>
+      </div>
+
       <ul class="list">
-        <li v-for="account in visible" :key="account.username">
-          <a :href="`https://www.instagram.com/${account.username}`" target="_blank" rel="noopener">
+        <li
+          v-for="account in visible"
+          :key="account.username"
+          :class="{ done: done.has(keyOf(account)) }"
+        >
+          <a
+            :href="`https://www.instagram.com/${account.username}`"
+            target="_blank"
+            rel="noopener"
+            @click="opened.add(keyOf(account))"
+          >
             <span class="avatar">
               {{ initialOf(account.username) }}
               <img
@@ -96,8 +144,19 @@ const visible = computed(() => {
                 @error="brokenAvatars.add(account.username)"
               />
             </span>
-            @{{ account.username }}
+            <span class="username">@{{ account.username }}</span>
+            <span v-if="opened.has(keyOf(account)) && !done.has(keyOf(account))" class="tag">
+              opened
+            </span>
           </a>
+          <label class="check">
+            <input
+              type="checkbox"
+              :checked="done.has(keyOf(account))"
+              @change="toggleDone(account)"
+            />
+            Done
+          </label>
         </li>
         <li v-if="!visible.length" class="empty">No accounts here.</li>
       </ul>
@@ -214,6 +273,9 @@ h1 {
   border-radius: 12px;
 }
 .list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
 }
@@ -221,6 +283,8 @@ h1 {
   border-bottom: none;
 }
 .list a {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -249,6 +313,45 @@ h1 {
 }
 .list a:hover {
   color: var(--accent);
+}
+.username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 0.8em;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.list li.done a {
+  opacity: 0.45;
+}
+.list li.done .username {
+  text-decoration: line-through;
+}
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
 }
 .empty {
   color: var(--muted);
