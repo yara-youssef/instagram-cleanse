@@ -35,6 +35,12 @@ const tabs = [
 const activeTab = ref('notFollowingBack')
 const search = ref('')
 
+// The export has no profile pictures, so they are looked up by username.
+// Failed lookups are remembered so the row falls back to the initial.
+const brokenAvatars = ref(new Set())
+const avatarUrl = (username) => `https://unavatar.io/instagram/${username}?fallback=false`
+const initialOf = (username) => (username.replace(/[^a-z0-9]/gi, '')[0] || '?').toUpperCase()
+
 const visible = computed(() => {
   if (!result.value) return []
   const q = search.value.trim().toLowerCase()
@@ -80,6 +86,16 @@ const visible = computed(() => {
       <ul class="list">
         <li v-for="account in visible" :key="account.username">
           <a :href="`https://www.instagram.com/${account.username}`" target="_blank" rel="noopener">
+            <span class="avatar">
+              {{ initialOf(account.username) }}
+              <img
+                v-if="!brokenAvatars.has(account.username)"
+                :src="avatarUrl(account.username)"
+                alt=""
+                loading="lazy"
+                @error="brokenAvatars.add(account.username)"
+              />
+            </span>
             @{{ account.username }}
           </a>
         </li>
@@ -205,8 +221,31 @@ h1 {
   border-bottom: none;
 }
 .list a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   color: var(--fg);
   text-decoration: none;
+}
+.avatar {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--border);
+  color: var(--muted);
+  font-weight: 600;
+}
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .list a:hover {
   color: var(--accent);
