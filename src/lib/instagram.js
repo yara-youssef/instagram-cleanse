@@ -45,3 +45,42 @@ export function compare(following, followers) {
   }
   return { mutual, notFollowingBack, fans }
 }
+
+// Instagram exports can be several GB because of media, so only the zip's
+// directory and the files we need are read, never the whole archive.
+const FOLLOW_FILE =
+  /(?:^|\/)connections\/followers_and_following\/(following|followers_\d+)\.(json|html)$/
+
+export async function readExport(file) {
+  const { ZipReader, BlobReader, TextWriter } = await import('@zip.js/zip.js')
+  const reader = new ZipReader(new BlobReader(file))
+  try {
+    const following = new Map()
+    const followers = new Map()
+    const found = new Set()
+    let foundHtml = false
+    for (const entry of await reader.getEntries()) {
+      const match = entry.filename.replace(/\\/g, '/').match(FOLLOW_FILE)
+      if (!match) continue
+      if (match[2] === 'html') {
+        foundHtml = true
+        continue
+      }
+      const accounts = parseAccounts(JSON.parse(await entry.getData(new TextWriter())))
+      const kind = match[1] === 'following' ? 'following' : 'followers'
+      found.add(kind)
+      const target = kind === 'following' ? following : followers
+      for (const [key, account] of accounts) target.set(key, account)
+    }
+    if (found.size < 2) {
+      throw new Error(
+        foundHtml
+          ? 'This export is in HTML format. Request a new one from Instagram and choose JSON as the format.'
+          : "Couldn't find connections/followers_and_following/following.json and followers_1.json in this zip.",
+      )
+    }
+    return { following, followers }
+  } finally {
+    await reader.close()
+  }
+}

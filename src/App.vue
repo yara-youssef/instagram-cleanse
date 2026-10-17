@@ -1,30 +1,26 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { compare, parseAccounts } from './lib/instagram'
+import { compare, readExport } from './lib/instagram'
 
-const files = ref({
-  following: { name: null, accounts: null, error: null },
-  followers: { name: null, accounts: null, error: null },
-})
+const upload = ref({ name: null, data: null, error: null, loading: false })
 
-async function onFile(kind, event) {
+async function onFile(event) {
   const file = event.target.files?.[0]
   if (!file) return
-  const slot = files.value[kind]
-  slot.name = file.name
-  slot.error = null
-  slot.accounts = null
+  upload.value = { name: file.name, data: null, error: null, loading: true }
   try {
-    slot.accounts = parseAccounts(JSON.parse(await file.text()))
+    upload.value.data = await readExport(file)
   } catch (e) {
-    slot.error = e instanceof SyntaxError ? 'Not a valid JSON file' : e.message
+    upload.value.error =
+      e instanceof SyntaxError ? 'The followers files in this zip are not valid JSON' : e.message
+  } finally {
+    upload.value.loading = false
   }
 }
 
 const result = computed(() => {
-  const { following, followers } = files.value
-  if (!following.accounts || !followers.accounts) return null
-  return compare(following.accounts, followers.accounts)
+  const data = upload.value.data
+  return data ? compare(data.following, data.followers) : null
 })
 
 const tabs = [
@@ -88,20 +84,20 @@ const visible = computed(() => {
   <main>
     <h1>Instagram Cleanse</h1>
     <p class="hint">
-      Upload <code>following.json</code> and <code>followers_1.json</code> from your Instagram data
-      export. Everything stays in your browser.
+      Upload the <code>.zip</code> from your Instagram data export (JSON format). Your files stay in
+      your browser.
     </p>
 
-    <div class="uploads">
-      <label v-for="kind in ['following', 'followers']" :key="kind" class="upload">
-        <span class="upload-title">{{ kind === 'following' ? 'Following' : 'Followers' }}</span>
-        <input type="file" accept=".json,application/json" @change="onFile(kind, $event)" />
-        <span v-if="files[kind].error" class="error">{{ files[kind].error }}</span>
-        <span v-else-if="files[kind].accounts" class="ok">
-          {{ files[kind].name }} · {{ files[kind].accounts.size }} accounts
-        </span>
-      </label>
-    </div>
+    <label class="upload">
+      <span class="upload-title">Instagram export</span>
+      <input type="file" accept=".zip,application/zip" @change="onFile" />
+      <span v-if="upload.loading" class="ok">Reading {{ upload.name }}…</span>
+      <span v-else-if="upload.error" class="error">{{ upload.error }}</span>
+      <span v-else-if="upload.data" class="ok">
+        {{ upload.name }} · following {{ upload.data.following.size }} · followers
+        {{ upload.data.followers.size }}
+      </span>
+    </label>
 
     <section v-if="result">
       <nav class="tabs">
@@ -172,7 +168,10 @@ const visible = computed(() => {
   --card: #fff;
   --border: #e3e3e3;
   --accent: #d6246e;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   color: var(--fg);
   background: var(--bg);
 }
@@ -203,16 +202,11 @@ h1 {
   color: var(--muted);
   margin: 0 0 24px;
 }
-.uploads {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
-}
 .upload {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 24px;
   padding: 16px;
   background: var(--card);
   border: 1px solid var(--border);
