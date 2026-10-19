@@ -10,7 +10,8 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
-  base:'/instagramcleanse',
+  // GitHub Pages serves the site from /<repo-name>/
+  base: '/instagram-cleanse/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
