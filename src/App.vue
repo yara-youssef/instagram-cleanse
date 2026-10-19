@@ -88,6 +88,40 @@ const visible = computed(() => {
       your browser.
     </p>
 
+    <details class="howto">
+      <summary>How do I get this zip?</summary>
+      <ol>
+        <li>
+          Open
+          <a
+            href="https://accountscenter.instagram.com/info_and_permissions/dyi/"
+            target="_blank"
+            rel="noopener"
+          >
+            Export your information</a
+          >
+          in Instagram's Accounts Center. In the app it's under Settings → Accounts Center → Your
+          information and permissions.
+        </li>
+        <li>
+          Tap <b>Create export</b>, pick your Instagram account, then <b>Export to device</b>.
+        </li>
+        <li>
+          Under <b>Customize information</b>, untick everything except
+          <b>Followers and following</b>. This keeps the file small and quick to make.
+        </li>
+        <li>
+          Set <b>Date range</b> to <b>All time</b> and <b>Format</b> to <b>JSON</b> (not HTML).
+        </li>
+        <li>
+          Tap <b>Start export</b>. Instagram emails you when it's ready, usually within minutes to a
+          few hours. Come back to the same page to download it.
+        </li>
+        <li>Upload the downloaded <code>.zip</code> below as it is, no need to unzip it.</li>
+      </ol>
+      <p>Instagram renames these menus now and then, so the wording may be slightly different.</p>
+    </details>
+
     <label class="upload">
       <span class="upload-title">Instagram export</span>
       <input type="file" accept=".zip,application/zip" @change="onFile" />
@@ -201,6 +235,33 @@ h1 {
 .hint {
   color: var(--muted);
   margin: 0 0 24px;
+}
+.howto {
+  margin: 0 0 24px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.howto summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.howto ol {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+.howto li + li {
+  margin-top: 6px;
+}
+.howto p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.howto a {
+  color: var(--accent);
 }
 .upload {
   display: flex;
